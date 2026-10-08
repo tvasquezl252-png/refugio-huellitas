@@ -5,7 +5,6 @@ Panel web adaptable para registrar y administrar mascotas en adopción.
 ## Funciones
 
 - Registro de perros, gatos y otros animales, con código automático.
-- Cinco perfiles de muestra con fotos ilustrativas en la primera visita; se pueden editar o eliminar.
 - Galería de perfiles con fotografías, filtros por especie, edad y estado, búsqueda, favoritos y ficha individual.
 - Carga de fotos reales optimizadas al registrar o editar una mascota.
 - Seguimiento de adopción en tres estados: disponible, en proceso y adoptado, con fecha de actualización.
@@ -14,4 +13,4 @@ Panel web adaptable para registrar y administrar mascotas en adopción.
 - Edición de datos, actualización de estado entre disponible/adoptado y eliminación confirmada.
 - Almacenamiento ampliado en el navegador mediante IndexedDB, con importación automática de registros anteriores.
 
-Abre `index.html` en un navegador moderno. Los cinco registros de muestra se cargan una sola vez cuando el navegador no tiene mascotas guardadas; esto también corrige sesiones que conservaron una lista vacía de una visita anterior. Se pueden editar o eliminar y reemplazar por información real. Mascotas y fotos se guardan en IndexedDB para ofrecer mucho más espacio que `localStorage`; los favoritos se guardan en el navegador. Los datos solo están disponibles en el dispositivo y navegador utilizados; esta versión no sincroniza datos entre usuarios ni dispositivos. Las fotos ilustrativas requieren conexión a internet.
+Abre `index.html` en un navegador moderno. La plataforma comienza vacía para que registres tus propios animales. Al actualizar, elimina automáticamente los cinco perfiles de demostración anteriores y conserva las mascotas reales que hayas agregado. Mascotas y fotos se guardan en IndexedDB; los favoritos se guardan en el navegador. Los datos solo están disponibles en el dispositivo y navegador utilizados; esta versión no sincroniza datos entre usuarios ni dispositivos. Las fotos ilustrativas que aparecen al registrar una mascota sin foto requieren conexión a internet.

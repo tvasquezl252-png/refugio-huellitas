@@ -152,6 +152,7 @@
       }
       .enter-button:hover { transform: translateY(-2px); background: white; box-shadow: 0 14px 38px rgba(0, 0, 0, .28); }
       .enter-button:active { transform: translateY(0); }
+      .enter-button:disabled { cursor: wait; opacity: .75; }
       .enter-arrow { font-size: 18px; transition: transform .2s; }
       .enter-button:hover .enter-arrow { transform: translateX(3px); }
       .landing-note { display: flex; align-items: center; gap: 8px; color: rgba(255, 255, 255, .72); font-size: 11px; }
@@ -482,7 +483,7 @@
           <h1 id="landingTitle">Refugio de Mascotas<span>Huellitas</span></h1>
           <p class="landing-description">Detrás de cada mirada hay una historia que merece un final feliz. Conoce a nuestros compañeros y ayúdanos a encontrarles un hogar lleno de amor.</p>
           <div class="landing-actions">
-            <button class="enter-button" id="enterPlatform" type="button">Ingresar a la plataforma <span class="enter-arrow" aria-hidden="true">→</span></button>
+            <button class="enter-button" id="enterPlatform" type="button" disabled>Ingresar a la plataforma <span class="enter-arrow" aria-hidden="true">→</span></button>
             <div class="landing-note"><span aria-hidden="true">✦</span> Registra. Cuida. Encuentra un hogar.</div>
           </div>
         </div>
@@ -520,7 +521,6 @@
             <p class="adoption-eyebrow">Adopción responsable</p>
             <h2 id="adoptionTitle">Conoce a quienes esperan un hogar</h2>
             <p>Descubre los perfiles, conoce sus personalidades y encuentra a tu nuevo mejor amigo.</p>
-            <p class="gallery-demo-note" id="galleryDemoNote">Perfiles de muestra con fotos ilustrativas. Reemplázalos por los datos reales de tu refugio.</p>
           </div>
           <span class="gallery-count" id="galleryCount" aria-live="polite">0 compañeros</span>
         </div>
@@ -742,38 +742,7 @@
             'https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?auto=format&fit=crop&w=800&q=85'
           ]
         };
-        const samplePets = [
-          {
-            id: 'demo-milo', code: 'MASC-001', name: 'Milo', species: 'Perro', sex: 'Macho',
-            age: 1.5, phone: '', status: 'Disponible',
-            notes: 'Perfil de muestra: juguetón, sociable y listo para acompañarte en nuevos paseos.',
-            photo: 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=800&q=85'
-          },
-          {
-            id: 'demo-luna', code: 'MASC-002', name: 'Luna', species: 'Gato', sex: 'Hembra',
-            age: 2, phone: '', status: 'Disponible',
-            notes: 'Perfil de muestra: curiosa, tranquila y muy observadora. Le encanta descubrir rincones nuevos.',
-            photo: 'https://images.unsplash.com/photo-1573865526739-10659fec78a5?auto=format&fit=crop&w=800&q=85'
-          },
-          {
-            id: 'demo-toby', code: 'MASC-003', name: 'Toby', species: 'Perro', sex: 'Macho',
-            age: 4, phone: '', status: 'En proceso',
-            notes: 'Perfil de muestra: compañero leal que disfruta los paseos y compartir tiempo con las personas.',
-            photo: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=800&q=85'
-          },
-          {
-            id: 'demo-nala', code: 'MASC-004', name: 'Nala', species: 'Gato', sex: 'Hembra',
-            age: 1, phone: '', status: 'Disponible',
-            notes: 'Perfil de muestra: juguetona y curiosa; siempre encuentra algo interesante que explorar.',
-            photo: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=800&q=85'
-          },
-          {
-            id: 'demo-rocky', code: 'MASC-005', name: 'Rocky', species: 'Perro', sex: 'Macho',
-            age: 6, phone: '', status: 'Adoptado',
-            notes: 'Perfil de muestra: ya encontró una familia. Su ficha permite ver cómo luce el estado de adopción.',
-            photo: 'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&w=800&q=85'
-          }
-        ];
+        const samplePetIds = new Set(['demo-milo', 'demo-luna', 'demo-toby', 'demo-nala', 'demo-rocky']);
         let galleryFilter = 'Todos';
         let selectedPhoto = null;
         let photoProcessing = false;
@@ -838,25 +807,22 @@
         async function loadPets() {
           petDatabase = await openPetDatabase();
           const storedPets = await readDatabasePets();
-          if (storedPets.length > 0) return storedPets;
+          const currentPets = storedPets.filter(pet => !samplePetIds.has(pet.id));
+          if (currentPets.length !== storedPets.length) {
+            await writeDatabasePets(currentPets);
+            window.setTimeout(() => showToast('Se quitaron los perfiles de ejemplo. Tus mascotas registradas se conservaron.'), 0);
+          }
+          if (currentPets.length > 0) return currentPets;
 
-          const seedsLoaded = localStorage.getItem('huellitas.demo-seeded.v1') === 'true';
-          const legacyPets = readLegacyPets();
+          const legacyPets = readLegacyPets().filter(pet => !samplePetIds.has(pet.id));
           if (legacyPets.length > 0) {
             await writeDatabasePets(legacyPets);
             localStorage.removeItem(storageKey);
-            if (!seedsLoaded) localStorage.setItem('huellitas.demo-seeded.v1', 'true');
             return legacyPets;
           }
-          if (seedsLoaded) return [];
-
-          const initialPets = samplePets.map((pet, index) => {
-            const date = new Date(Date.now() - (samplePets.length - index) * 86400000).toISOString();
-            return { ...pet, createdAt: date, updatedAt: date };
-          });
-          await writeDatabasePets(initialPets);
-          localStorage.setItem('huellitas.demo-seeded.v1', 'true');
-          return initialPets;
+          localStorage.removeItem(storageKey);
+          localStorage.removeItem('huellitas.demo-seeded.v1');
+          return [];
         }
 
         function loadFavorites() {
@@ -1129,7 +1095,6 @@
 
           document.getElementById('galleryCount').textContent = `${filtered.length} ${filtered.length === 1 ? 'compañero' : 'compañeros'}`;
           document.getElementById('favoriteCount').textContent = activeFavorites.size;
-          document.getElementById('galleryDemoNote').hidden = !pets.some(pet => pet.id.startsWith('demo-'));
           clearGalleryFilters.hidden = galleryFilter === 'Todos' && !galleryAgeFilter.value && !query;
           galleryGrid.replaceChildren();
           galleryEmpty.classList.remove('no-results');
@@ -1387,29 +1352,7 @@
           form.reset();
           selectedPhoto = null;
           showPhotoPreview(null);
-          async function initialize() {
-            try {
-              pets = await loadPets();
-            } catch (error) {
-              petDatabase = null;
-              showToast('No se pudo abrir el almacenamiento ampliado. Se intentarán recuperar los registros anteriores. ' + error.message, true);
-              try {
-                pets = readLegacyPets();
-                if (pets.length === 0 && localStorage.getItem('huellitas.demo-seeded.v1') !== 'true') {
-                  pets = samplePets.map((pet, index) => {
-                    const date = new Date(Date.now() - (samplePets.length - index) * 86400000).toISOString();
-                    return { ...pet, createdAt: date, updatedAt: date };
-                  });
-                }
-              } catch (legacyError) {
-                showToast('No se pudieron recuperar los registros guardados. ' + legacyError.message, true);
-                pets = [];
-              }
-            }
-            render();
-          }
-
-          initialize();
+          render();
           showToast(`${pet.name} se registró correctamente con el código ${pet.code}.`);
           document.getElementById('petName').focus();
         });
@@ -1493,7 +1436,30 @@
           landing.hidden = false;
           document.getElementById('enterPlatform').focus({ preventScroll: true });
         });
-        render();
+
+        async function initialize() {
+          try {
+            pets = await loadPets();
+          } catch (error) {
+            petDatabase = null;
+            showToast('No se pudo abrir el almacenamiento ampliado. Se intentarán recuperar los registros anteriores. ' + error.message, true);
+            try {
+              pets = readLegacyPets().filter(pet => !samplePetIds.has(pet.id));
+            } catch (legacyError) {
+              showToast('No se pudieron recuperar los registros guardados. ' + legacyError.message, true);
+              pets = [];
+            }
+          }
+          const currentFavorites = new Set([...favorites].filter(id => pets.some(pet => pet.id === id)));
+          if (currentFavorites.size !== favorites.size) {
+            favorites = currentFavorites;
+            saveFavorites();
+          }
+          render();
+          document.getElementById('enterPlatform').disabled = false;
+        }
+
+        initialize();
       })();
     </script>
   </body>
