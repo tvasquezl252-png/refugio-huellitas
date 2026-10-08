@@ -234,6 +234,7 @@
       .adoption-eyebrow { margin: 0 0 5px; color: var(--green); font-size: 10px; font-weight: 750; letter-spacing: .13em; text-transform: uppercase; }
       .adoption-heading h2 { margin: 0; font-size: clamp(21px, 2.5vw, 28px); letter-spacing: -.045em; }
       .adoption-heading p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+      .adoption-heading .gallery-demo-note { margin-top: 7px; color: #8a744d; font-size: 10px; }
       .gallery-count { flex: 0 0 auto; color: var(--muted); font-size: 11px; }
       .gallery-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 15px; }
       .gallery-filters { display: flex; flex-wrap: wrap; gap: 7px; }
@@ -517,15 +518,16 @@
         <div class="adoption-heading">
           <div class="adoption-heading-copy">
             <p class="adoption-eyebrow">Adopción responsable</p>
-            <h2 id="adoptionTitle">Conoce a quienes esperan un hogar</h2>
-            <p>Historias reales, compañeros únicos. Encuentra a tu nuevo mejor amigo.</p>
+            <h2 id="adoptionTitle">Cinco compañeros esperan conocerte</h2>
+            <p>Descubre los perfiles, conoce sus personalidades y encuentra a tu nuevo mejor amigo.</p>
+            <p class="gallery-demo-note">Perfiles de muestra con fotos ilustrativas. Reemplázalos por los datos reales de tu refugio.</p>
           </div>
           <span class="gallery-count" id="galleryCount" aria-live="polite">0 compañeros</span>
         </div>
         <div class="gallery-toolbar">
           <div class="gallery-filters" id="galleryFilters" role="group" aria-label="Filtrar mascotas por categoría">
-            <button class="filter-chip" type="button" data-gallery-filter="Disponible" aria-pressed="true">Disponibles</button>
-            <button class="filter-chip" type="button" data-gallery-filter="Todos" aria-pressed="false">Todos</button>
+            <button class="filter-chip" type="button" data-gallery-filter="Disponible" aria-pressed="false">Disponibles</button>
+            <button class="filter-chip" type="button" data-gallery-filter="Todos" aria-pressed="true">Todos</button>
             <button class="filter-chip" type="button" data-gallery-filter="Perro" aria-pressed="false">🐕 Perros</button>
             <button class="filter-chip" type="button" data-gallery-filter="Gato" aria-pressed="false">🐈 Gatos</button>
             <button class="filter-chip" type="button" data-gallery-filter="Otro" aria-pressed="false">🐾 Otros</button>
@@ -740,7 +742,39 @@
             'https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?auto=format&fit=crop&w=800&q=85'
           ]
         };
-        let galleryFilter = 'Disponible';
+        const samplePets = [
+          {
+            id: 'demo-milo', code: 'MASC-001', name: 'Milo', species: 'Perro', sex: 'Macho',
+            age: 1.5, phone: '', status: 'Disponible',
+            notes: 'Perfil de muestra: juguetón, sociable y listo para acompañarte en nuevos paseos.',
+            photo: 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=800&q=85'
+          },
+          {
+            id: 'demo-luna', code: 'MASC-002', name: 'Luna', species: 'Gato', sex: 'Hembra',
+            age: 2, phone: '', status: 'Disponible',
+            notes: 'Perfil de muestra: curiosa, tranquila y muy observadora. Le encanta descubrir rincones nuevos.',
+            photo: 'https://images.unsplash.com/photo-1573865526739-10659fec78a5?auto=format&fit=crop&w=800&q=85'
+          },
+          {
+            id: 'demo-toby', code: 'MASC-003', name: 'Toby', species: 'Perro', sex: 'Macho',
+            age: 4, phone: '', status: 'En proceso',
+            notes: 'Perfil de muestra: compañero leal que disfruta los paseos y compartir tiempo con las personas.',
+            photo: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=800&q=85'
+          },
+          {
+            id: 'demo-nala', code: 'MASC-004', name: 'Nala', species: 'Gato', sex: 'Hembra',
+            age: 1, phone: '', status: 'Disponible',
+            notes: 'Perfil de muestra: juguetona y curiosa; siempre encuentra algo interesante que explorar.',
+            photo: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=800&q=85'
+          },
+          {
+            id: 'demo-rocky', code: 'MASC-005', name: 'Rocky', species: 'Perro', sex: 'Macho',
+            age: 6, phone: '', status: 'Adoptado',
+            notes: 'Perfil de muestra: ya encontró una familia. Su ficha permite ver cómo luce el estado de adopción.',
+            photo: 'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&w=800&q=85'
+          }
+        ];
+        let galleryFilter = 'Todos';
         let selectedPhoto = null;
         let photoProcessing = false;
         let photoRequestId = 0;
@@ -752,7 +786,14 @@
         function loadPets() {
           try {
             const saved = localStorage.getItem(storageKey);
-            if (saved === null) return [];
+            if (saved === null) {
+              const initialPets = samplePets.map((pet, index) => {
+                const date = new Date(Date.now() - (samplePets.length - index) * 86400000).toISOString();
+                return { ...pet, createdAt: date, updatedAt: date };
+              });
+              localStorage.setItem(storageKey, JSON.stringify(initialPets));
+              return initialPets;
+            }
             const parsed = JSON.parse(saved);
             if (!Array.isArray(parsed) || parsed.some(pet => !pet || typeof pet.id !== 'string' || typeof pet.code !== 'string')) {
               throw new Error('El formato de los registros guardados no es válido.');
@@ -931,6 +972,7 @@
           const phone = String(pet.phone || '').replace(/[^\d+]/g, '');
           contact.href = phone ? `tel:${phone}` : '#';
           contact.setAttribute('aria-disabled', String(!phone));
+          contact.textContent = phone ? '☎ Llamar al refugio' : 'Contacto aún no registrado';
           profileDialog.showModal();
         }
 
@@ -999,9 +1041,14 @@
 
           const contact = document.createElement('a');
           contact.className = 'btn btn-secondary';
-          contact.href = `tel:${String(pet.phone || '').replace(/[^\d+]/g, '')}`;
-          contact.setAttribute('aria-label', `Llamar al refugio por ${pet.name}`);
-          contact.textContent = 'Llamar';
+          const phone = String(pet.phone || '').replace(/[^\d+]/g, '');
+          contact.href = phone ? `tel:${phone}` : '#';
+          contact.setAttribute('aria-label', phone ? `Llamar al refugio por ${pet.name}` : `Registrar un teléfono de contacto para ${pet.name}`);
+          contact.setAttribute('aria-disabled', String(!phone));
+          contact.textContent = phone ? 'Llamar' : 'Contacto pendiente';
+          contact.addEventListener('click', event => {
+            if (!phone) event.preventDefault();
+          });
           actions.append(contact);
           body.append(actions);
           card.append(body);
@@ -1029,7 +1076,7 @@
 
           document.getElementById('galleryCount').textContent = `${filtered.length} ${filtered.length === 1 ? 'compañero' : 'compañeros'}`;
           document.getElementById('favoriteCount').textContent = activeFavorites.size;
-          clearGalleryFilters.hidden = galleryFilter === 'Disponible' && !galleryAgeFilter.value && !query;
+          clearGalleryFilters.hidden = galleryFilter === 'Todos' && !galleryAgeFilter.value && !query;
           galleryGrid.replaceChildren();
           galleryEmpty.classList.remove('no-results');
 
@@ -1134,7 +1181,7 @@
             statusCell.append(status);
             row.append(statusCell);
 
-            row.append(makeCell(pet.phone));
+            row.append(makeCell(pet.phone || '—'));
             const actions = document.createElement('td');
             const actionGroup = document.createElement('div');
             actionGroup.className = 'row-actions';
