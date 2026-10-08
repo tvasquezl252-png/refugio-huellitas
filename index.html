@@ -1449,6 +1449,8 @@
         });
 
         async function initialize() {
+          const enterButton = document.getElementById('enterPlatform');
+          enterButton.disabled = false;
           try {
             pets = await loadPets();
           } catch (error) {
@@ -1467,7 +1469,7 @@
             saveFavorites();
           }
           render();
-          document.getElementById('enterPlatform').disabled = false;
+          enterButton.disabled = false;
         }
 
         initialize();
