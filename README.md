@@ -12,6 +12,6 @@ Panel web adaptable para registrar y administrar mascotas en adopción.
 - Resumen de mascotas por especie y estado.
 - Búsqueda por nombre, código o teléfono y filtros por especie y estado.
 - Edición de datos, actualización de estado entre disponible/adoptado y eliminación confirmada.
-- Guardado local en el navegador mediante `localStorage`.
+- Almacenamiento ampliado en el navegador mediante IndexedDB, con importación automática de registros anteriores.
 
-Abre `index.html` en un navegador moderno. Los cinco registros de muestra se cargan una sola vez cuando el navegador no tiene mascotas guardadas; esto también corrige sesiones que conservaron una lista vacía de una visita anterior. Se pueden editar o eliminar y reemplazar por información real. Los registros, fotos y favoritos se guardan en el dispositivo y navegador utilizados; esta versión no sincroniza datos entre usuarios ni dispositivos. Las fotos ilustrativas requieren conexión a internet.
+Abre `index.html` en un navegador moderno. Los cinco registros de muestra se cargan una sola vez cuando el navegador no tiene mascotas guardadas; esto también corrige sesiones que conservaron una lista vacía de una visita anterior. Se pueden editar o eliminar y reemplazar por información real. Mascotas y fotos se guardan en IndexedDB para ofrecer mucho más espacio que `localStorage`; los favoritos se guardan en el navegador. Los datos solo están disponibles en el dispositivo y navegador utilizados; esta versión no sincroniza datos entre usuarios ni dispositivos. Las fotos ilustrativas requieren conexión a internet.

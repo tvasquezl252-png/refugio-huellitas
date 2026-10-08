@@ -783,32 +783,81 @@
         let editingId = null;
         let toastTimer;
 
-        function loadPets() {
-          try {
-            const saved = localStorage.getItem(storageKey);
-            const seedsLoaded = localStorage.getItem('huellitas.demo-seeded.v1') === 'true';
-            const parsed = saved === null ? [] : JSON.parse(saved);
-            if (!Array.isArray(parsed) || parsed.some(pet => !pet || typeof pet.id !== 'string' || typeof pet.code !== 'string')) {
-              throw new Error('El formato de los registros guardados no es válido.');
+        let petDatabase = null;
+        let pets = [];
+
+        function openPetDatabase() {
+          return new Promise((resolve, reject) => {
+            if (!window.indexedDB) {
+              reject(new Error('Este navegador no ofrece almacenamiento ampliado para las mascotas.'));
+              return;
             }
-            if (parsed.length === 0 && !seedsLoaded) {
-              const initialPets = samplePets.map((pet, index) => {
-                const date = new Date(Date.now() - (samplePets.length - index) * 86400000).toISOString();
-                return { ...pet, createdAt: date, updatedAt: date };
-              });
-              localStorage.setItem(storageKey, JSON.stringify(initialPets));
-              localStorage.setItem('huellitas.demo-seeded.v1', 'true');
-              return initialPets;
-            }
-            if (!seedsLoaded) localStorage.setItem('huellitas.demo-seeded.v1', 'true');
-            return parsed;
-          } catch (error) {
-            window.setTimeout(() => showToast('No se pudieron cargar los registros guardados. ' + error.message, true), 0);
-            return [];
-          }
+            const request = window.indexedDB.open('HuellitasDB', 1);
+            request.onupgradeneeded = () => {
+              if (!request.result.objectStoreNames.contains('pets')) {
+                request.result.createObjectStore('pets', { keyPath: 'id' });
+              }
+            };
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error || new Error('No se pudo abrir la base de datos del refugio.'));
+            request.onblocked = () => reject(new Error('Cierra otras pestañas de Huellitas y vuelve a intentarlo.'));
+          });
         }
 
-        let pets = loadPets();
+        function readDatabasePets() {
+          return new Promise((resolve, reject) => {
+            const transaction = petDatabase.transaction('pets', 'readonly');
+            const request = transaction.objectStore('pets').getAll();
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error || new Error('No se pudieron leer las mascotas guardadas.'));
+            transaction.onabort = () => reject(transaction.error || new Error('No se pudo leer la base de datos del refugio.'));
+          });
+        }
+
+        function writeDatabasePets(records) {
+          return new Promise((resolve, reject) => {
+            const transaction = petDatabase.transaction('pets', 'readwrite');
+            const store = transaction.objectStore('pets');
+            store.clear();
+            records.forEach(pet => store.put(pet));
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = () => reject(transaction.error || new Error('El navegador no pudo guardar los registros.'));
+            transaction.onabort = () => reject(transaction.error || new Error('Se canceló el guardado de registros.'));
+          });
+        }
+
+        function readLegacyPets() {
+          const saved = localStorage.getItem(storageKey);
+          const parsed = saved === null ? [] : JSON.parse(saved);
+          if (!Array.isArray(parsed) || parsed.some(pet => !pet || typeof pet.id !== 'string' || typeof pet.code !== 'string')) {
+            throw new Error('El formato de los registros anteriores no es válido.');
+          }
+          return parsed;
+        }
+
+        async function loadPets() {
+          petDatabase = await openPetDatabase();
+          const storedPets = await readDatabasePets();
+          if (storedPets.length > 0) return storedPets;
+
+          const seedsLoaded = localStorage.getItem('huellitas.demo-seeded.v1') === 'true';
+          const legacyPets = readLegacyPets();
+          if (legacyPets.length > 0) {
+            await writeDatabasePets(legacyPets);
+            localStorage.removeItem(storageKey);
+            if (!seedsLoaded) localStorage.setItem('huellitas.demo-seeded.v1', 'true');
+            return legacyPets;
+          }
+          if (seedsLoaded) return [];
+
+          const initialPets = samplePets.map((pet, index) => {
+            const date = new Date(Date.now() - (samplePets.length - index) * 86400000).toISOString();
+            return { ...pet, createdAt: date, updatedAt: date };
+          });
+          await writeDatabasePets(initialPets);
+          localStorage.setItem('huellitas.demo-seeded.v1', 'true');
+          return initialPets;
+        }
 
         function loadFavorites() {
           try {
@@ -834,12 +883,13 @@
           }
         }
 
-        function savePets() {
+        async function savePets() {
           try {
-            localStorage.setItem(storageKey, JSON.stringify(pets));
+            if (petDatabase) await writeDatabasePets(pets);
+            else localStorage.setItem(storageKey, JSON.stringify(pets));
             return true;
           } catch (error) {
-            showToast('No se pudieron guardar los cambios en este dispositivo. ' + error.message, true);
+            showToast('No se pudieron guardar los cambios. Comprueba el espacio disponible del navegador e inténtalo de nuevo. ' + error.message, true);
             return false;
           }
         }
@@ -1244,7 +1294,7 @@
           document.getElementById('petName').focus({ preventScroll: true });
         }
 
-        function toggleStatus(id) {
+        async function toggleStatus(id) {
           const index = pets.findIndex(item => item.id === id);
           if (index < 0) {
             showToast('No se encontró la mascota que intentas actualizar.', true);
@@ -1253,7 +1303,7 @@
           const previousPet = pets[index];
           const newStatus = getNextStatus(previousPet.status);
           pets[index] = { ...pets[index], status: newStatus, updatedAt: new Date().toISOString() };
-          if (!savePets()) {
+          if (!await savePets()) {
             pets[index] = previousPet;
             return;
           }
@@ -1261,7 +1311,7 @@
           showToast(`${pets[index].name} ahora figura como ${newStatus.toLocaleLowerCase('es')}.`);
         }
 
-        function deletePet(id) {
+        async function deletePet(id) {
           const pet = pets.find(item => item.id === id);
           if (!pet) {
             showToast('No se encontró la mascota que intentas eliminar.', true);
@@ -1270,7 +1320,7 @@
           if (!window.confirm(`¿Eliminar el registro de ${pet.name} (${pet.code})? Esta acción no se puede deshacer.`)) return;
           const previous = pets;
           pets = pets.filter(item => item.id !== id);
-          if (!savePets()) {
+          if (!await savePets()) {
             pets = previous;
             return;
           }
@@ -1279,7 +1329,7 @@
           showToast(`Registro de ${pet.name} eliminado.`);
         }
 
-        form.addEventListener('submit', event => {
+        form.addEventListener('submit', async event => {
           event.preventDefault();
           if (photoProcessing) {
             showToast('Espera a que termine de prepararse la foto.', true);
@@ -1310,7 +1360,7 @@
             }
             const previousPet = pets[index];
             pets[index] = { ...pets[index], ...values, updatedAt: new Date().toISOString() };
-            if (!savePets()) {
+            if (!await savePets()) {
               pets[index] = previousPet;
               return;
             }
@@ -1330,14 +1380,36 @@
             updatedAt: new Date().toISOString()
           };
           pets = [...pets, pet];
-          if (!savePets()) {
+          if (!await savePets()) {
             pets = pets.filter(item => item.id !== pet.id);
             return;
           }
           form.reset();
           selectedPhoto = null;
           showPhotoPreview(null);
-          render();
+          async function initialize() {
+            try {
+              pets = await loadPets();
+            } catch (error) {
+              petDatabase = null;
+              showToast('No se pudo abrir el almacenamiento ampliado. Se intentarán recuperar los registros anteriores. ' + error.message, true);
+              try {
+                pets = readLegacyPets();
+                if (pets.length === 0 && localStorage.getItem('huellitas.demo-seeded.v1') !== 'true') {
+                  pets = samplePets.map((pet, index) => {
+                    const date = new Date(Date.now() - (samplePets.length - index) * 86400000).toISOString();
+                    return { ...pet, createdAt: date, updatedAt: date };
+                  });
+                }
+              } catch (legacyError) {
+                showToast('No se pudieron recuperar los registros guardados. ' + legacyError.message, true);
+                pets = [];
+              }
+            }
+            render();
+          }
+
+          initialize();
           showToast(`${pet.name} se registró correctamente con el código ${pet.code}.`);
           document.getElementById('petName').focus();
         });
