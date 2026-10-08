@@ -787,11 +787,11 @@
           return new Promise((resolve, reject) => {
             const transaction = petDatabase.transaction('pets', 'readwrite');
             const store = transaction.objectStore('pets');
-            store.clear();
-            records.forEach(pet => store.put(pet));
             transaction.oncomplete = () => resolve();
             transaction.onerror = () => reject(transaction.error || new Error('El navegador no pudo guardar los registros.'));
             transaction.onabort = () => reject(transaction.error || new Error('Se canceló el guardado de registros.'));
+            store.clear();
+            records.forEach(pet => store.put(pet));
           });
         }
 
@@ -851,11 +851,22 @@
 
         async function savePets() {
           try {
-            if (petDatabase) await writeDatabasePets(pets);
-            else localStorage.setItem(storageKey, JSON.stringify(pets));
+            if (petDatabase) {
+              try {
+                await writeDatabasePets(pets);
+                return true;
+              } catch (databaseError) {
+                petDatabase.close();
+                petDatabase = null;
+                localStorage.setItem(storageKey, JSON.stringify(pets));
+                showToast('Se guardaron en este navegador. El almacenamiento ampliado no está disponible: ' + databaseError.message, true);
+                return true;
+              }
+            }
+            localStorage.setItem(storageKey, JSON.stringify(pets));
             return true;
           } catch (error) {
-            showToast('No se pudieron guardar los cambios. Comprueba el espacio disponible del navegador e inténtalo de nuevo. ' + error.message, true);
+            showToast('No se pudieron guardar los cambios. Revisa el espacio disponible del navegador e inténtalo de nuevo. ' + error.message, true);
             return false;
           }
         }
