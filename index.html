@@ -518,9 +518,9 @@
         <div class="adoption-heading">
           <div class="adoption-heading-copy">
             <p class="adoption-eyebrow">Adopción responsable</p>
-            <h2 id="adoptionTitle">Cinco compañeros esperan conocerte</h2>
+            <h2 id="adoptionTitle">Conoce a quienes esperan un hogar</h2>
             <p>Descubre los perfiles, conoce sus personalidades y encuentra a tu nuevo mejor amigo.</p>
-            <p class="gallery-demo-note">Perfiles de muestra con fotos ilustrativas. Reemplázalos por los datos reales de tu refugio.</p>
+            <p class="gallery-demo-note" id="galleryDemoNote">Perfiles de muestra con fotos ilustrativas. Reemplázalos por los datos reales de tu refugio.</p>
           </div>
           <span class="gallery-count" id="galleryCount" aria-live="polite">0 compañeros</span>
         </div>
@@ -786,18 +786,21 @@
         function loadPets() {
           try {
             const saved = localStorage.getItem(storageKey);
-            if (saved === null) {
+            const seedsLoaded = localStorage.getItem('huellitas.demo-seeded.v1') === 'true';
+            const parsed = saved === null ? [] : JSON.parse(saved);
+            if (!Array.isArray(parsed) || parsed.some(pet => !pet || typeof pet.id !== 'string' || typeof pet.code !== 'string')) {
+              throw new Error('El formato de los registros guardados no es válido.');
+            }
+            if (parsed.length === 0 && !seedsLoaded) {
               const initialPets = samplePets.map((pet, index) => {
                 const date = new Date(Date.now() - (samplePets.length - index) * 86400000).toISOString();
                 return { ...pet, createdAt: date, updatedAt: date };
               });
               localStorage.setItem(storageKey, JSON.stringify(initialPets));
+              localStorage.setItem('huellitas.demo-seeded.v1', 'true');
               return initialPets;
             }
-            const parsed = JSON.parse(saved);
-            if (!Array.isArray(parsed) || parsed.some(pet => !pet || typeof pet.id !== 'string' || typeof pet.code !== 'string')) {
-              throw new Error('El formato de los registros guardados no es válido.');
-            }
+            if (!seedsLoaded) localStorage.setItem('huellitas.demo-seeded.v1', 'true');
             return parsed;
           } catch (error) {
             window.setTimeout(() => showToast('No se pudieron cargar los registros guardados. ' + error.message, true), 0);
@@ -1076,6 +1079,7 @@
 
           document.getElementById('galleryCount').textContent = `${filtered.length} ${filtered.length === 1 ? 'compañero' : 'compañeros'}`;
           document.getElementById('favoriteCount').textContent = activeFavorites.size;
+          document.getElementById('galleryDemoNote').hidden = !pets.some(pet => pet.id.startsWith('demo-'));
           clearGalleryFilters.hidden = galleryFilter === 'Todos' && !galleryAgeFilter.value && !query;
           galleryGrid.replaceChildren();
           galleryEmpty.classList.remove('no-results');
